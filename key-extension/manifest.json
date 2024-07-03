@@ -1,0 +1,20 @@
+{
+  "manifest_version": 2,
+  "name": "API Key Manager",
+  "version": "1.0",
+  "description": "Manage and rank API keys based on usage",
+  "permissions": ["storage", "tabs"],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icon128.png"
+    }
+  },
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
