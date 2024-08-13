@@ -113,8 +113,13 @@ document.getElementById('showAllKeys').addEventListener('click', function() {
 
 document.getElementById('showAddKeyForm').addEventListener('click', function() {
   const addKeyForm = document.getElementById('addKeyForm');
-  addKeyForm.style.display = addKeyForm.style.display === 'none' ? 'block' : 'none';
-  this.textContent = addKeyForm.style.display === 'none' ? 'Add New API Key' : 'Cancel';
+  if (addKeyForm.style.display === 'none' || addKeyForm.style.display === '') {
+    addKeyForm.style.display = 'block';
+    this.textContent = 'Cancel';
+  } else {
+    addKeyForm.style.display = 'none';
+    this.textContent = 'Add New API Key';
+  }
 });
 
 document.getElementById('addKey').addEventListener('click', function() {
@@ -150,3 +155,6 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
 
 // Initial load
 loadAndDisplayKeys();
+
+// Ensure the add key form is hidden initially
+document.getElementById('addKeyForm').style.display = 'none';
