@@ -90,18 +90,47 @@ function generateUniqueId() {
 function addApiKey(name, key) {
   const newKey = new ApiKey(generateUniqueId(), key, name, Date.now(), Date.now());
   apiKeys.push(newKey);
-  chrome.storage.sync.set({apiKeys: apiKeys}, () => {
-    if (chrome.runtime.lastError) {
-      console.error('Error saving API keys:', chrome.runtime.lastError);
-    }
-  });
+  saveApiKeys();
 }
 
 // Add this function to delete an API key
 function deleteApiKey(keyId) {
   apiKeys = apiKeys.filter(key => key.id !== keyId);
-  chrome.storage.local.set({apiKeys: apiKeys});
+  saveApiKeys();
 }
+
+function saveApiKeys() {
+  chrome.storage.sync.set({apiKeys: apiKeys}, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Error saving API keys to sync storage:', chrome.runtime.lastError);
+      // Backup to localStorage
+      localStorage.setItem('apiKeys', JSON.stringify(apiKeys));
+    }
+  });
+}
+
+function loadApiKeys() {
+  chrome.storage.sync.get(['apiKeys'], (result) => {
+    if (chrome.runtime.lastError) {
+      console.error('Error loading API keys from sync storage:', chrome.runtime.lastError);
+      // Try to load from localStorage
+      const localBackup = localStorage.getItem('apiKeys');
+      if (localBackup) {
+        apiKeys = JSON.parse(localBackup);
+      }
+    } else {
+      apiKeys = result.apiKeys || [];
+    }
+  });
+}
+
+// Call loadApiKeys when the extension starts
+loadApiKeys();
+
+// Periodically check and restore data integrity
+setInterval(() => {
+  loadApiKeys();
+}, 5 * 60 * 1000); // Check every 5 minutes
 
 // Main function
 function getRankedApiKeys(currentUrl) {
