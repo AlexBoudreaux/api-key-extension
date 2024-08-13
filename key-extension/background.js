@@ -90,7 +90,11 @@ function generateUniqueId() {
 function addApiKey(name, key) {
   const newKey = new ApiKey(generateUniqueId(), key, name, Date.now(), Date.now());
   apiKeys.push(newKey);
-  chrome.storage.local.set({apiKeys: apiKeys});
+  chrome.storage.sync.set({apiKeys: apiKeys}, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Error saving API keys:', chrome.runtime.lastError);
+    }
+  });
 }
 
 // Add this function to delete an API key
@@ -112,24 +116,34 @@ chrome.runtime.onInstalled.addListener(function() {
       new ApiKey("2", "key2", "Key 2", Date.now() - 2 * 3600 * 1000, Date.now()),
       new ApiKey("3", "key3", "Key 3", Date.now(), Date.now()),
   ];
-  chrome.storage.local.set({apiKeys: apiKeys});
+  chrome.storage.sync.set({apiKeys: apiKeys}, () => {
+    if (chrome.runtime.lastError) {
+      console.error('Error initializing API keys:', chrome.runtime.lastError);
+    }
+  });
 });
 
 // Update the message listener to handle deleting API keys
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.action === "updateRanking") {
-      const rankedKeys = getRankedApiKeys(request.url);
-      chrome.storage.local.set({apiKeys: rankedKeys});
-      sendResponse({success: true});
+    const rankedKeys = getRankedApiKeys(request.url);
+    chrome.storage.sync.set({apiKeys: rankedKeys}, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Error updating API key ranking:', chrome.runtime.lastError);
+        sendResponse({success: false, error: chrome.runtime.lastError});
+      } else {
+        sendResponse({success: true});
+      }
+    });
   } else if (request.action === "trackUsage") {
-      trackKeyUsage(request.keyId, request.url);
-      sendResponse({success: true});
+    trackKeyUsage(request.keyId, request.url);
+    sendResponse({success: true});
   } else if (request.action === "addApiKey") {
-      addApiKey(request.name, request.key);
-      sendResponse({success: true});
+    addApiKey(request.name, request.key);
+    sendResponse({success: true});
   } else if (request.action === "deleteApiKey") {
-      deleteApiKey(request.keyId);
-      sendResponse({success: true});
+    deleteApiKey(request.keyId);
+    sendResponse({success: true});
   }
   return true; // Keeps the message channel open for async response
 });
