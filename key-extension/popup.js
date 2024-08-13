@@ -107,8 +107,13 @@ function deleteApiKey(keyId) {
 
 document.getElementById('showAllKeys').addEventListener('click', function() {
   const allKeysDiv = document.getElementById('allKeys');
-  allKeysDiv.style.display = allKeysDiv.style.display === 'none' ? 'block' : 'none';
-  this.textContent = allKeysDiv.style.display === 'none' ? 'Show All Keys' : 'Hide All Keys';
+  if (allKeysDiv.style.display === 'none' || allKeysDiv.style.display === '') {
+    allKeysDiv.style.display = 'block';
+    this.textContent = 'Hide All Keys';
+  } else {
+    allKeysDiv.style.display = 'none';
+    this.textContent = 'Show All Keys';
+  }
 });
 
 document.getElementById('showAddKeyForm').addEventListener('click', function() {
@@ -156,5 +161,6 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
 // Initial load
 loadAndDisplayKeys();
 
-// Ensure the add key form is hidden initially
+// Ensure the add key form and all keys div are hidden initially
 document.getElementById('addKeyForm').style.display = 'none';
+document.getElementById('allKeys').style.display = 'none';
