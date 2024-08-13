@@ -1,10 +1,22 @@
 // Fetch API keys from storage and display them
 function loadAndDisplayKeys() {
-  chrome.storage.local.get(['apiKeys'], function(result) {
+  chrome.storage.sync.get(['apiKeys'], function(result) {
+    if (chrome.runtime.lastError) {
+      console.error('Error loading API keys:', chrome.runtime.lastError);
+      displayError('Failed to load API keys. Please try again.');
+    } else {
       const apiKeys = result.apiKeys || [];
       displayTopKeys(apiKeys.slice(0, 3));
       displayAllKeys(apiKeys);
+    }
   });
+}
+
+function displayError(message) {
+  const errorDiv = document.createElement('div');
+  errorDiv.textContent = message;
+  errorDiv.style.color = 'red';
+  document.body.insertBefore(errorDiv, document.body.firstChild);
 }
 
 function displayTopKeys(keys) {
