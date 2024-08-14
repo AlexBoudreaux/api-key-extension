@@ -85,9 +85,9 @@ function createKeyElement(key) {
 
 function copyToClipboard(text, feedbackElement) {
   navigator.clipboard.writeText(text).then(() => {
-      feedbackElement.style.display = 'inline';
+      feedbackElement.style.opacity = '1';
       setTimeout(() => {
-          feedbackElement.style.display = 'none';
+          feedbackElement.style.opacity = '0';
       }, 2000);
   }, (err) => {
       console.error('Could not copy text: ', err);
