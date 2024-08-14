@@ -28,13 +28,24 @@ function isRecent(apiKey, hours = 12) {
   return (Date.now() - apiKey.createdAt) < hours * 3600 * 1000;
 }
 
+function getDomain(url) {
+  const urlObj = new URL(url);
+  return urlObj.hostname;
+}
+
 function getUrlUsageHistory(url) {
-  return urlUsageHistory.filter(usage => usage.url === url);
+  const domain = getDomain(url);
+  return urlUsageHistory.filter(usage => getDomain(usage.url) === domain);
 }
 
 function recencyBonus(lastUsed) {
   const hoursAgo = (Date.now() - lastUsed) / (3600 * 1000);
   return Math.max(24 - hoursAgo, 0);
+}
+
+function decayFactor(lastUsed) {
+  const daysAgo = (Date.now() - lastUsed) / (24 * 3600 * 1000);
+  return Math.exp(-daysAgo / 30); // Exponential decay with a half-life of about 30 days
 }
 
 // Scoring and ranking functions
@@ -46,7 +57,8 @@ function calculateScore(apiKey, currentUrl) {
   const usage = getUrlUsageHistory(currentUrl);
   for (let item of usage) {
       if (item.keyId === apiKey.id) {
-          baseScore += Math.min(item.useCount * 2, 50);
+          const decayedUseCount = item.useCount * decayFactor(item.lastUsed);
+          baseScore += Math.min(decayedUseCount * 2, 50);
           baseScore += recencyBonus(item.lastUsed);
       }
   }
@@ -63,10 +75,12 @@ function rankApiKeys(currentUrl) {
 
 // Usage tracking functions
 function updateUrlUsageHistory(keyId, url) {
-  const existingUsage = urlUsageHistory.find(usage => usage.url === url && usage.keyId === keyId);
+  const domain = getDomain(url);
+  const existingUsage = urlUsageHistory.find(usage => getDomain(usage.url) === domain && usage.keyId === keyId);
   if (existingUsage) {
       existingUsage.useCount += 1;
       existingUsage.lastUsed = Date.now();
+      existingUsage.url = url; // Update to the most recent URL for this domain
   } else {
       urlUsageHistory.push(new UrlUsageHistory(url, keyId, 1, Date.now()));
   }
@@ -181,10 +195,10 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
 // Periodically clean up old data (e.g., every hour)
 setInterval(() => {
-  const oneMonthAgo = Date.now() - 30 * 24 * 3600 * 1000;
-  urlUsageHistory = urlUsageHistory.filter(usage => usage.lastUsed > oneMonthAgo);
+  const threeMonthsAgo = Date.now() - 90 * 24 * 3600 * 1000;
+  urlUsageHistory = urlUsageHistory.filter(usage => usage.lastUsed > threeMonthsAgo);
   for (let keyId in recentKeysCache) {
-      if (recentKeysCache[keyId] < oneMonthAgo) {
+      if (recentKeysCache[keyId] < threeMonthsAgo) {
           delete recentKeysCache[keyId];
       }
   }
