@@ -1,16 +1,24 @@
 // Fetch API keys from storage and display them
-function loadAndDisplayKeys() {
+function loadAndDisplayKeys(retryCount = 0) {
   chrome.storage.sync.get(['apiKeys'], function(result) {
     if (chrome.runtime.lastError) {
       console.error('Error loading API keys:', chrome.runtime.lastError);
       displayError('Failed to load API keys. Please try again.');
     } else {
       const apiKeys = result.apiKeys || [];
-      displayTopKeys(apiKeys.slice(0, 3));
-      displayAllKeys(apiKeys);
+      if (apiKeys.length === 0 && retryCount < 3) {
+        // If no keys are found, retry after a short delay
+        setTimeout(() => loadAndDisplayKeys(retryCount + 1), 500);
+      } else {
+        displayTopKeys(apiKeys.slice(0, 3));
+        displayAllKeys(apiKeys);
+      }
     }
   });
 }
+
+// Initial load with retry
+loadAndDisplayKeys();
 
 function displayError(message) {
   const errorDiv = document.createElement('div');
@@ -158,8 +166,6 @@ chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
   chrome.runtime.sendMessage({action: "updateRanking", url: currentUrl});
 });
 
-// Initial load
-loadAndDisplayKeys();
 
 // Ensure the add key form and all keys div are hidden initially
 document.getElementById('addKeyForm').style.display = 'none';
