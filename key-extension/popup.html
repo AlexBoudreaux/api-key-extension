@@ -7,13 +7,17 @@
     <style>
         body {
             width: 320px;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #e0e5ec;
             color: #333;
-            margin: 0;
+        }
+        #container {
+            padding: 20px;
             border-radius: 15px 0 15px 15px;
             overflow: hidden;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);
         }
         h1 {
             font-size: 24px;
@@ -131,8 +135,9 @@
     </style>
 </head>
 <body>
-    <h1>API Key Manager</h1>
-    <div id="topKeys"></div>
+    <div id="container">
+        <h1>API Key Manager</h1>
+        <div id="topKeys"></div>
     <button id="showAllKeys">Show All Keys</button>
     <div id="allKeys"></div>
     <button id="showAddKeyForm">Add New API Key</button>
@@ -142,5 +147,6 @@
         <button id="addKey">Add Key</button>
     </div>
     <script src="popup.js"></script>
+    </div>
 </body>
 </html>
