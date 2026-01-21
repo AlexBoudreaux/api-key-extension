@@ -1,172 +1,197 @@
-// Fetch API keys from storage and display them
-function loadAndDisplayKeys(retryCount = 0) {
-  chrome.storage.sync.get(['apiKeys'], function(result) {
-    if (chrome.runtime.lastError) {
-      console.error('Error loading API keys:', chrome.runtime.lastError);
-      displayError('Failed to load API keys. Please try again.');
-    } else {
-      const apiKeys = result.apiKeys || [];
-      if (apiKeys.length === 0 && retryCount < 3) {
-        // If no keys are found, retry after a short delay
-        setTimeout(() => loadAndDisplayKeys(retryCount + 1), 500);
-      } else {
-        displayTopKeys(apiKeys.slice(0, 3));
-        displayAllKeys(apiKeys);
-      }
+import { state } from './state.js';
+import { encryption } from './encryption.js';
+
+// UI Elements
+const loginSection = document.getElementById('loginSection');
+const keySection = document.getElementById('keySection');
+const loginError = document.getElementById('loginError');
+const keysList = document.getElementById('keysList');
+
+// Initialize the application
+async function init() {
+    try {
+        await state.initialize();
+        
+        // Subscribe to state changes
+        state.subscribe(handleStateChange);
+        
+        // Set up event listeners
+        setupEventListeners();
+    } catch (error) {
+        console.error('Initialization error:', error);
+        showError('Failed to initialize application');
     }
-  });
 }
 
-// Initial load with retry
-loadAndDisplayKeys();
+// Set up event listeners
+function setupEventListeners() {
+    // Login/Create Password
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+        const password = document.getElementById('password').value;
+        if (!password) {
+            showError('Please enter a password');
+            return;
+        }
+        
+        try {
+            const currentState = state.getState();
+            if (currentState.isFirstTimeSetup) {
+                // Create new password
+                const success = await state.createPassword(password);
+                if (!success) {
+                    showError('Failed to create password. Please try again.');
+                }
+            } else {
+                // Login with existing password
+                const success = await state.unlock(password);
+                if (!success) {
+                    showError('Invalid password. Please try again.');
+                }
+            }
+        } catch (error) {
+            console.error('Password operation error:', error);
+            showError(error.message || 'An error occurred. Please try again.');
+        }
+    });
 
-function displayError(message) {
-  const errorDiv = document.createElement('div');
-  errorDiv.textContent = message;
-  errorDiv.style.color = 'red';
-  document.body.insertBefore(errorDiv, document.body.firstChild);
+    // Add enter key support for password
+    document.getElementById('password').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('loginBtn').click();
+        }
+    });
+
+    // Lock
+    document.getElementById('lockBtn').addEventListener('click', () => {
+        try {
+            state.lock();
+            // Clear password field
+            document.getElementById('password').value = '';
+        } catch (error) {
+            console.error('Lock error:', error);
+            showError('Failed to lock the application');
+        }
+    });
+
+    // Add key
+    document.getElementById('addKeyBtn').addEventListener('click', async () => {
+        const name = document.getElementById('keyName').value.trim();
+        const value = document.getElementById('keyValue').value.trim();
+        
+        if (!name || !value) {
+            showError('Please enter both name and value');
+            return;
+        }
+        
+        try {
+            const success = await state.addKey(name, value);
+            if (success) {
+                // Clear inputs
+                document.getElementById('keyName').value = '';
+                document.getElementById('keyValue').value = '';
+            } else {
+                showError('Failed to add key. Please try again.');
+            }
+        } catch (error) {
+            console.error('Add key error:', error);
+            showError(error.message || 'Failed to add key');
+        }
+    });
 }
 
-function displayTopKeys(keys) {
-  const topKeysDiv = document.getElementById('topKeys');
-  topKeysDiv.innerHTML = '';
-  keys.forEach(key => {
-      const keyElement = createKeyElement(key);
-      topKeysDiv.appendChild(keyElement);
-  });
+// Handle state changes
+function handleStateChange(newState) {
+    try {
+        // Update login button text and description
+        const loginBtn = document.getElementById('loginBtn');
+        const loginText = document.querySelector('#loginSection h3');
+        
+        if (newState.isFirstTimeSetup) {
+            loginBtn.textContent = 'Create Password';
+            loginText.textContent = 'Create Password';
+            document.getElementById('password').placeholder = 'Enter new password';
+        } else {
+            loginBtn.textContent = 'Login';
+            loginText.textContent = 'Login';
+            document.getElementById('password').placeholder = 'Enter password';
+        }
+        
+        // Update UI based on lock state
+        loginSection.classList.toggle('hidden', !newState.isLocked);
+        keySection.classList.toggle('hidden', newState.isLocked);
+        
+        // Show error if present
+        if (newState.error) {
+            showError(newState.error);
+        } else {
+            loginError.classList.add('hidden');
+        }
+        
+        // Update keys list if unlocked
+        if (!newState.isLocked) {
+            renderKeys(newState.keys);
+        }
+    } catch (error) {
+        console.error('State change error:', error);
+    }
 }
 
-function displayAllKeys(keys) {
-  const allKeysDiv = document.getElementById('allKeys');
-  allKeysDiv.innerHTML = '';
-  keys.forEach(key => {
-      const keyElement = createKeyElement(key);
-      allKeysDiv.appendChild(keyElement);
-  });
+// Render keys list
+function renderKeys(keys) {
+    keysList.innerHTML = '';
+    
+    if (keys.length === 0) {
+        keysList.innerHTML = '<div class="key-item">No keys added yet</div>';
+        return;
+    }
+    
+    keys.forEach(key => {
+        const keyElement = document.createElement('div');
+        keyElement.className = 'key-item';
+        
+        keyElement.innerHTML = `
+            <div>
+                <strong>${key.name}</strong>
+                <br>
+                <span>${maskKey(key.value)}</span>
+            </div>
+            <div>
+                <button class="copy-btn" data-value="${key.value}">Copy</button>
+                <button class="delete-btn" data-id="${key.id}">Delete</button>
+            </div>
+        `;
+        
+        // Add event listeners
+        keyElement.querySelector('.copy-btn').addEventListener('click', (e) => {
+            const value = e.target.dataset.value;
+            navigator.clipboard.writeText(value);
+            e.target.textContent = 'Copied!';
+            setTimeout(() => {
+                e.target.textContent = 'Copy';
+            }, 2000);
+        });
+        
+        keyElement.querySelector('.delete-btn').addEventListener('click', (e) => {
+            const id = e.target.dataset.id;
+            if (confirm('Are you sure you want to delete this key?')) {
+                state.deleteKey(id);
+            }
+        });
+        
+        keysList.appendChild(keyElement);
+    });
 }
 
-function createKeyElement(key) {
-  const keyDiv = document.createElement('div');
-  keyDiv.className = 'api-key';
-  
-  const nameSpan = document.createElement('span');
-  nameSpan.className = 'api-key-name';
-  nameSpan.textContent = key.name;
-  keyDiv.appendChild(nameSpan);
-
-  keyDiv.appendChild(document.createElement('br'));
-
-  const valueSpan = document.createElement('span');
-  valueSpan.className = 'api-key-value';
-  valueSpan.textContent = `${key.key.substr(0, 8)}...`;
-  keyDiv.appendChild(valueSpan);
-
-  const feedbackSpan = document.createElement('span');
-  feedbackSpan.className = 'copy-feedback';
-  feedbackSpan.textContent = 'Copied!';
-  keyDiv.appendChild(feedbackSpan);
-
-  const deleteButton = document.createElement('button');
-  deleteButton.className = 'delete-key';
-  deleteButton.textContent = 'X';
-  deleteButton.addEventListener('click', (e) => {
-      e.stopPropagation();  // Prevent the copy action
-      deleteApiKey(key.id);
-  });
-  keyDiv.appendChild(deleteButton);
-
-  keyDiv.addEventListener('click', () => {
-      copyToClipboard(key.key, feedbackSpan);
-      trackKeyUsage(key.id);
-  });
-
-  return keyDiv;
+// Helper functions
+function showError(message) {
+    loginError.textContent = message;
+    loginError.classList.remove('hidden');
 }
 
-function copyToClipboard(text, feedbackElement) {
-  navigator.clipboard.writeText(text).then(() => {
-      feedbackElement.style.opacity = '1';
-      setTimeout(() => {
-          feedbackElement.style.opacity = '0';
-      }, 2000);
-  }, (err) => {
-      console.error('Could not copy text: ', err);
-  });
+function maskKey(key) {
+    if (key.length <= 8) return '••••••••';
+    return key.substr(0, 4) + '••••' + key.substr(-4);
 }
 
-function trackKeyUsage(keyId) {
-  chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      const currentUrl = tabs[0].url;
-      chrome.runtime.sendMessage({action: "trackUsage", keyId: keyId, url: currentUrl});
-  });
-}
-
-function deleteApiKey(keyId) {
-  if (confirm('Are you sure you want to delete this API key?')) {
-      chrome.runtime.sendMessage({action: "deleteApiKey", keyId: keyId}, function(response) {
-          if (response.success) {
-              loadAndDisplayKeys();
-          } else {
-              alert('Failed to delete API key. Please try again.');
-          }
-      });
-  }
-}
-
-document.getElementById('showAllKeys').addEventListener('click', function() {
-  const allKeysDiv = document.getElementById('allKeys');
-  if (allKeysDiv.style.display === 'none' || allKeysDiv.style.display === '') {
-    allKeysDiv.style.display = 'block';
-    this.textContent = 'Hide All Keys';
-  } else {
-    allKeysDiv.style.display = 'none';
-    this.textContent = 'Show All Keys';
-  }
-});
-
-document.getElementById('showAddKeyForm').addEventListener('click', function() {
-  const addKeyForm = document.getElementById('addKeyForm');
-  if (addKeyForm.style.display === 'none' || addKeyForm.style.display === '') {
-    addKeyForm.style.display = 'block';
-    this.textContent = 'Cancel';
-  } else {
-    addKeyForm.style.display = 'none';
-    this.textContent = 'Add New API Key';
-  }
-});
-
-document.getElementById('addKey').addEventListener('click', function() {
-  const keyName = document.getElementById('keyName').value;
-  const keyValue = document.getElementById('keyValue').value;
-  
-  if (keyName && keyValue) {
-      chrome.runtime.sendMessage({
-          action: "addApiKey",
-          name: keyName,
-          key: keyValue
-      }, function(response) {
-          if (response.success) {
-              document.getElementById('keyName').value = '';
-              document.getElementById('keyValue').value = '';
-              document.getElementById('addKeyForm').style.display = 'none';
-              document.getElementById('showAddKeyForm').textContent = 'Add New API Key';
-              loadAndDisplayKeys();
-          } else {
-              alert('Failed to add API key. Please try again.');
-          }
-      });
-  } else {
-      alert('Please enter both a name and value for the API key.');
-  }
-});
-
-// Update API key ranking when popup is opened
-chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-  const currentUrl = tabs[0].url;
-  chrome.runtime.sendMessage({action: "updateRanking", url: currentUrl});
-});
-
-
-// Ensure the add key form and all keys div are hidden initially
-document.getElementById('addKeyForm').style.display = 'none';
-document.getElementById('allKeys').style.display = 'none';
+// Initialize the application
+init();

@@ -1,18 +1,23 @@
 {
-  "manifest_version": 2,
-  "name": "API Key Manager",
+  "manifest_version": 3,
+  "name": "API Key Garage",
   "version": "1.0",
-  "description": "Manage and rank API keys based on usage",
-  "permissions": ["storage", "tabs"],
-  "browser_action": {
+  "description": "Securely store and manage your API keys",
+  "permissions": [
+    "storage",
+    "tabs",
+    "clipboardWrite",
+    "unlimitedStorage"
+  ],
+  "action": {
     "default_popup": "popup.html",
     "default_icon": {
       "128": "icon128.png"
     }
   },
   "background": {
-    "scripts": ["background.js"],
-    "persistent": false
+    "service_worker": "background.js",
+    "type": "module"
   },
   "icons": {
     "128": "icon128.png"

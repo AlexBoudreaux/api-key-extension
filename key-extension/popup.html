@@ -1,154 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Key Manager</title>
+    <title>API Key Garage</title>
     <style>
         body {
-            width: 320px;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #e0e5ec;
-            color: #333;
-        }
-        #container {
+            width: 400px;
             padding: 20px;
-            border-radius: 15px 0 15px 15px;
-            overflow: hidden;
-            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.05);
+            font-family: Arial, sans-serif;
         }
-        h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #333;
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-        }
-        .api-key {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #e0e5ec;
-            border-radius: 10px;
-            cursor: pointer;
-            position: relative;
-            box-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff;
-            transition: all 0.3s ease;
-            height: 40px;
+        .container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            gap: 15px;
         }
-        .api-key:hover {
-            box-shadow: inset 4px 4px 8px #b8b9be, inset -4px -4px 8px #ffffff;
+        .login-section, .key-section {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-        .api-key-name {
-            font-weight: bold;
-            font-size: 16px;
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
+        .key-item {
+            padding: 10px;
+            border: 1px solid #eee;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .api-key-value {
-            font-family: 'Courier New', Courier, monospace;
-            color: #0078d4;
-            font-size: 14px;
+        .error {
+            color: red;
+            margin: 5px 0;
         }
-        .copy-feedback {
-            color: #4caf50;
-            font-size: 12px;
-            position: absolute;
-            right: 40px;
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .delete-key {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            background-color: #ff4757;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 12px;
-            line-height: 20px;
-            text-align: center;
-            cursor: pointer;
-            padding: 0;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            transition: all 0.3s ease;
-        }
-        .delete-key:hover {
-            background-color: #ff6b6b;
-            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        .hidden {
+            display: none;
         }
         button {
-            width: 100%;
-            padding: 12px;
-            background-color: #0078d4;
-            color: white;
-            border: none;
-            border-radius: 10px;
+            padding: 8px 12px;
             cursor: pointer;
-            margin-bottom: 15px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            box-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff;
-        }
-        button:hover {
-            background-color: #005a9e;
-            box-shadow: 4px 4px 8px #b8b9be, -4px -4px 8px #ffffff;
-        }
-        button:active {
-            box-shadow: inset 4px 4px 8px #004c87, inset -4px -4px 8px #0064b1;
-        }
-        #allKeys {
-            display: none;
-            margin-top: 20px;
-        }
-        #addKeyForm {
-            display: none;
-            margin-top: 20px;
         }
         input {
+            padding: 8px;
+            margin: 5px 0;
             width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            background-color: #e0e5ec;
-            color: #333;
-            border: none;
-            border-radius: 10px;
-            font-size: 14px;
-            box-shadow: inset 4px 4px 8px #b8b9be, inset -4px -4px 8px #ffffff;
-        }
-        input:focus {
-            outline: none;
-            box-shadow: inset 2px 2px 4px #b8b9be, inset -2px -2px 4px #ffffff;
-        }
-        #topKeys {
-            margin-bottom: 20px;
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h1>API Key Manager</h1>
-        <div id="topKeys"></div>
-    <button id="showAllKeys">Show All Keys</button>
-    <div id="allKeys"></div>
-    <button id="showAddKeyForm">Add New API Key</button>
-    <div id="addKeyForm">
-        <input type="text" id="keyName" placeholder="API Key Name">
-        <input type="text" id="keyValue" placeholder="API Key Value">
-        <button id="addKey">Add Key</button>
+    <div class="container">
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <h3>Login</h3>
+            <input type="password" id="password" placeholder="Enter password">
+            <button id="loginBtn">Login</button>
+            <div id="loginError" class="error hidden"></div>
+        </div>
+
+        <!-- Key Management Section -->
+        <div id="keySection" class="key-section hidden">
+            <h3>API Keys</h3>
+            <button id="lockBtn">Lock</button>
+            
+            <!-- Add Key Form -->
+            <div>
+                <input type="text" id="keyName" placeholder="Key Name">
+                <input type="text" id="keyValue" placeholder="Key Value">
+                <button id="addKeyBtn">Add Key</button>
+            </div>
+
+            <!-- Keys List -->
+            <div id="keysList"></div>
+        </div>
     </div>
-    <script src="popup.js"></script>
-    </div>
+    <script type="module" src="popup.js"></script>
 </body>
 </html>
